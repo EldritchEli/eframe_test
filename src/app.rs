@@ -1,3 +1,5 @@
+use eframe::epaint::Color32;
+use eframe::glow::RED;
 use egui::UiKind::ScrollArea;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -22,6 +24,7 @@ pub struct TemplateApp {
     // Example stuff:
     label: String,
     inProgressDevice : Option<Device>,
+    warn: bool,
     devices : Vec<Device>,
     #[serde(skip)] // This how you opt-out of serialization of a field
     value: f32,
@@ -33,6 +36,7 @@ impl Default for TemplateApp {
             // Example stuff:
             label: "Hello World!".to_owned(),
             inProgressDevice : None,
+            warn: false,
             devices: Vec::new(),
             value: 0.0,
         }
@@ -99,14 +103,23 @@ impl eframe::App for TemplateApp {
 
 
                     if ui.button("finish").clicked() {
-                        self.devices.push(self.inProgressDevice.take().unwrap());
+                        if self.devices.iter().any(|d| d.name == device.name) {
+                                self.warn = true;
+                        } 
+                        else {
+                            self.devices.push(self.inProgressDevice.take().unwrap());
+                            self.warn = false;
+                        }
                     }
+                    if self.warn {
+                    ui.colored_label(Color32::RED, "try a unique name");
+                    }                 
                 }
                 egui::CollapsingHeader::new("Clients").show_background(false)
                     .show(ui, |ui| {
                         egui::ScrollArea::vertical().show(ui, |ui| {
                             for mut device in self.devices.iter_mut() {
-                                egui::CollapsingHeader::new(&device.name).show(ui, |ui| { 
+                                egui::CollapsingHeader::new(&device.name).show(ui, |ui| {
                                 ui.add(egui::Slider::new(&mut device.frequency_min, 0.0..=10000.0).text("min range"));
                                 ui.add(egui::Slider::new(&mut device.frequency_max, 0.0..=10000.0).text("max range"));
                                 if ui.button("remove device").clicked() {
