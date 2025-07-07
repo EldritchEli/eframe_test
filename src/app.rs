@@ -1,5 +1,10 @@
-use eframe::epaint::Color32;
+use std::arch::aarch64::vpadd_f32;
+use std::f32::consts::TAU;
+use eframe::epaint::{vec2, Color32, Pos2, Rect, Stroke, StrokeKind};
 use eframe::glow::RED;
+use egui::epaint::tessellator::path::rounded_rectangle;
+use egui::{CornerRadius, Sense, Shape, Ui, Vec2};
+use egui::epaint::RectShape;
 use egui::UiKind::ScrollArea;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -91,49 +96,67 @@ impl eframe::App for TemplateApp {
         egui::CentralPanel::default().show(
             ctx,
             |ui| {
+                
+
                 // The central panel the region left after adding TopPanel's and SidePanel's
                 ui.heading("Client manager");
+                ui.horizontal(|ui| {
 
-                ui.add_space(16.0);
-                if self.inProgressDevice.clone().is_none() && ui.button("new client").clicked() {
-                    self.inProgressDevice = Some(Default::default());
-                }
-                else if let Some(ref mut device) = &mut self.inProgressDevice {
-                    let response = ui.add(egui::TextEdit::singleline(&mut device.name));
+                    ui.vertical(|ui| {
+                        ui.add_space(16.0);
+
+                        if self.inProgressDevice.clone().is_none() && ui.button("new client").clicked() {
+                            self.inProgressDevice = Some(Default::default());
+                        } else if let Some(ref mut device) = &mut self.inProgressDevice {
+                            let response = ui.add(egui::TextEdit::singleline(&mut device.name));
 
 
-                    if ui.button("finish").clicked() {
-                        if self.devices.iter().any(|d| d.name == device.name) {
-                                self.warn = true;
-                        } 
-                        else {
-                            self.devices.push(self.inProgressDevice.take().unwrap());
-                            self.warn = false;
-                        }
-                    }
-                    if self.warn {
-                    ui.colored_label(Color32::RED, "try a unique name");
-                    }                 
-                }
-                egui::CollapsingHeader::new("Clients").show_background(false)
-                    .show(ui, |ui| {
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            for mut device in self.devices.iter_mut() {
-                                egui::CollapsingHeader::new(&device.name).show(ui, |ui| {
-                                ui.add(egui::Slider::new(&mut device.frequency_min, 0.0..=10000.0).text("min range"));
-                                ui.add(egui::Slider::new(&mut device.frequency_max, 0.0..=10000.0).text("max range"));
-                                if ui.button("remove device").clicked() {
-                                    device.remove = true
-                                }});
+                            if ui.button("finish").clicked() {
+                                if self.devices.iter().any(|d| d.name == device.name) {
+                                    self.warn = true;
+                                } else {
+                                    self.devices.push(self.inProgressDevice.take().unwrap());
+                                    self.warn = false;
+                                }
                             }
-                            self.devices = self.devices.iter()
-                              .filter(|x| !x.remove)
-                              .cloned()
-                              .collect();
-                        })
-                    });
+                            if self.warn {
+                                ui.colored_label(Color32::RED, "try a unique name");
+                            }
+                        }
 
-                ui.separator();
+                        egui::CollapsingHeader::new("Clients")
+                          .show(ui, |ui| {
+
+                              egui::ScrollArea::vertical()
+                                .min_scrolled_height(ctx.screen_rect().height()-175.0)
+                                .max_height(160.0)
+                                .show(ui, |ui| {
+                                  for mut device in self.devices.iter_mut() {
+                                      egui::CollapsingHeader::new(&device.name).show(ui, |ui| {
+                                          ui.add(egui::Slider::new(&mut device.frequency_min, 0.0..=10000.0).text("min range"));
+                                          ui.add(egui::Slider::new(&mut device.frequency_max, 0.0..=10000.0).text("max range"));
+                                          if ui.button("remove device").clicked() {
+                                              device.remove = true
+                                          }
+                                      });
+                                  }
+                                  self.devices = self.devices.iter()
+                                    .filter(|x| !x.remove)
+                                    .cloned()
+                                    .collect();
+                              })
+                          });
+
+                    });
+                    ui.separator();
+                    ui.vertical(|ui| {
+draw_sector_map(ui);
+                    })
+
+
+               });
+
+
 
 
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -143,6 +166,33 @@ impl eframe::App for TemplateApp {
             }
         );
     }
+}
+
+fn draw_sector_map(ui: &mut Ui) {
+
+    ;
+       let size = Vec2::splat(100.0);
+       let (response, painter) = ui.allocate_painter(size, Sense::hover());
+       let rect = response.rect;
+       let c = rect.max;
+
+       let rectangle= Shape::Rect(RectShape {
+                   rect: Rect {min: Pos2::new(c.x - 50.0,c.y - 50.0),
+                               max: Pos2::new(c.x,c.x) },
+                   corner_radius: CornerRadius::same(0),
+                   fill: Color32::RED,
+                   stroke: Default::default(),
+                   stroke_kind: StrokeKind::Inside,
+                   round_to_pixels: None,
+                   blur_width: 0.0,
+                   brush: None,
+               });
+
+                painter.add(rectangle);
+
+
+
+    //ui.painter().set()
 }
 
 
